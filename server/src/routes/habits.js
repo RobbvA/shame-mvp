@@ -1,12 +1,16 @@
 const express = require("express");
+
 const {
   createHabit,
   getHabits,
+  getHabitById,
   addLog,
   countConsecutiveMisses,
   getRecentLogs,
 } = require("../db/memoryStore");
+
 const { computeEscalationStage } = require("../services/escalation");
+const { generateRoast } = require("../services/roastGenerator");
 
 const router = express.Router();
 
@@ -38,18 +42,37 @@ router.post("/:id/logs", (req, res) => {
   const habitId = req.params.id;
   const { outcome } = req.body;
 
+  // Optional (MVP defaults)
+  const brutalityLevel = req.body.brutalityLevel || "hard"; // soft | medium | hard | brutal
+  const persona = req.body.persona || "drill_sergeant"; // placeholder for later
+
   if (outcome !== "done" && outcome !== "missed") {
     return res
       .status(400)
       .json({ error: "outcome must be 'done' or 'missed'" });
   }
 
+  const habit = getHabitById(habitId);
+  if (!habit) return res.status(404).json({ error: "habit not found" });
+
   const log = addLog(habitId, { outcome });
-  if (!log) return res.status(404).json({ error: "habit not found" });
 
   const daysMissed = countConsecutiveMisses(habitId);
   const escalationStage = computeEscalationStage(daysMissed);
   const recentOutcomes = getRecentLogs(habitId, 3).map((l) => l.outcome);
+
+  let roast = null;
+
+  if (outcome === "missed") {
+    roast = generateRoast({
+      habitType: habit.name,
+      daysMissed,
+      escalationStage,
+      brutalityLevel,
+      persona,
+      recentOutcomes,
+    });
+  }
 
   res.status(201).json({
     log,
@@ -58,6 +81,7 @@ router.post("/:id/logs", (req, res) => {
       stage: escalationStage,
       recentOutcomes,
     },
+    roast,
   });
 });
 
