@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const habitsRouter = require("./routes/habits");
+
 const app = express();
 
 app.use(cors());
@@ -15,14 +17,8 @@ app.get("/health", (req, res) => {
   });
 });
 
-// MVP placeholder routes
-app.post("/habits", (req, res) => {
-  res.status(501).json({ error: "Not implemented yet" });
-});
-
-app.post("/habits/:id/logs", (req, res) => {
-  res.status(501).json({ error: "Not implemented yet" });
-});
+// Routes
+app.use("/habits", habitsRouter);
 
 const PORT = process.env.PORT || 3001;
 
