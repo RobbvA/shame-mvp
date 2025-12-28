@@ -2,6 +2,8 @@
 // Exports: generateRoast(options) => string
 // options: { habitType, daysMissed, escalationStage, brutalityLevel, persona, recentOutcomes }
 
+import { callGrok } from "./grokclient.js";
+
 function capitalize(s) {
   return String(s || "").replace(/_/g, " ").replace(/\b[a-z]/g, (m) => m.toUpperCase());
 }
@@ -10,51 +12,32 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateRoast({
+async function generateRoast({
   habitType = "habit",
   daysMissed = 0,
   escalationStage = 0,
-  brutalityLevel = "hard", // soft | medium | hard | brutal
+  brutalityLevel = "hard",
   persona = "drill_sergeant",
   recentOutcomes = [],
 } = {}) {
-  const personaName = capitalize(persona);
-  const base = `You missed ${habitType} for ${daysMissed} day${daysMissed === 1 ? '' : 's'}.`;
+  const prompt = [
+    `Persona: ${persona}`,
+    `Brutality: ${brutalityLevel}`,
+    `Habit: ${habitType}`,
+    `Days missed: ${daysMissed}`,
+    `Escalation stage: ${escalationStage}`,
+    `Recent outcomes: ${recentOutcomes.join(", ")}`,
+    "Write one short roast (1-2 sentences) tailored to the persona and brutality."
+  ].join("\n");
 
-  const stagePhrases = [
-    "Don't let it slide.",
-    "This is getting worrying.",
-    "You're on thin ice.",
-    "Alarm bells are ringing."
-  ];
-
-  const brutalityBuckets = {
-    soft: [
-      `Hey, ${personaName} here: ${base} ${pick(["Take it easy and try again tomorrow.", "Small steps — you got this."])} `,
-    ],
-    medium: [
-      `Listen up, ${personaName}: ${base} ${pick(["Pull yourself together.", "Get back on track before it becomes a habit."])} `,
-    ],
-    hard: [
-      `Warning from ${personaName}: ${base} ${pick(["Stop making excuses.", "This is on you — fix it."])} `,
-    ],
-    brutal: [
-      `Final call by ${personaName}: ${base} ${pick(["Seriously — what are you doing with your life?", "This is pathetic. Change or accept it."])} `,
-    ],
-  };
-
-  const brutality = brutalityBuckets[brutalityLevel] || brutalityBuckets.hard;
-
-  const stageMsg = stagePhrases[Math.min(escalationStage, stagePhrases.length - 1)];
-
-  // small personalization using recent outcomes
-  let recentNote = "";
-  if (recentOutcomes && recentOutcomes.length) {
-    const summary = recentOutcomes.join(", ");
-    recentNote = ` Recent outcomes: ${summary}.`;
+  try {
+    const text = await callGrok(prompt, { temperature: 0.8, maxTokens: 80, timeoutMs: 6000 });
+    return text.trim();
+  } catch (err) {
+    // graceful fallback (previous local generator)
+    console.warn("Grok API failed:", err.message);
+    return localFallbackRoast({ habitType, daysMissed, escalationStage, brutalityLevel, persona, recentOutcomes });
   }
-
-  return `${pick(brutality)}${stageMsg}${recentNote}`.trim();
 }
 
-module.exports = { generateRoast };
+export { generateRoast };

@@ -38,7 +38,7 @@ router.post("/", (req, res) => {
 });
 
 // POST /habits/:id/logs
-router.post("/:id/logs", (req, res) => {
+router.post("/:id/logs", async (req, res) => {
   const habitId = req.params.id;
   const { outcome } = req.body;
 
@@ -64,14 +64,19 @@ router.post("/:id/logs", (req, res) => {
   let roast = null;
 
   if (outcome === "missed") {
-    roast = generateRoast({
-      habitType: habit.name,
-      daysMissed,
-      escalationStage,
-      brutalityLevel,
-      persona,
-      recentOutcomes,
-    });
+    try {
+      roast = await generateRoast({
+        habitType: habit.name,
+        daysMissed,
+        escalationStage,
+        brutalityLevel,
+        persona,
+        recentOutcomes,
+      });
+    } catch (err) {
+      // already handled inside generateRoast, but catch here if needed
+      console.error("Roast generation error:", err);
+    }
   }
 
   res.status(201).json({
