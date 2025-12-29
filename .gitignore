@@ -1,5 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
 node_modules/
 server/node_modules/
-.env
-.env.local
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.pnp.cjs
+.pnp.js
+
+# Build / output
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+.cache/
+.next/
+.nuxt/
+.parcel-cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Misc
+*.swp
+*.bak
+*.tmp
