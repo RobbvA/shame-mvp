@@ -1,43 +1,59 @@
-// Simple roast generator for MVP
-// Exports: generateRoast(options) => string
-// options: { habitType, daysMissed, escalationStage, brutalityLevel, persona, recentOutcomes }
+// server/src/services/roastGenerator.js
+// Grok-first with deterministic fallback. Always returns a string.
 
-import { callGrok } from "./grokclient.js";
+const { callGrok } = require("./grokclient");
 
-function capitalize(s) {
-  return String(s || "").replace(/_/g, " ").replace(/\b[a-z]/g, (m) => m.toUpperCase());
+/**
+ * Deterministic local fallback (2–4 sentences, no emojis, no encouragement, no advice).
+ * Behavior-focused, not identity-focused.
+ */
+function localFallbackRoast(context) {
+  const { habitType, daysMissed, escalationStage, brutalityLevel } = context;
+
+  const base = `You skipped "${habitType}" again.`;
+
+  const streak = daysMissed >= 2 ? `${daysMissed} days straight.` : "";
+
+  let escalation;
+  if (escalationStage === "mild") {
+    escalation = "You're already building a streak of avoidance.";
+  } else if (escalationStage === "medium") {
+    escalation = "You keep choosing comfort over the commitment you made.";
+  } else {
+    escalation = "You keep breaking the same promise and acting surprised.";
+  }
+
+  let brutality;
+  if (brutalityLevel === "soft") {
+    brutality = "You said you'd do it. You didn't.";
+  } else if (brutalityLevel === "medium") {
+    brutality = "This is the exact behavior that keeps you stuck.";
+  } else if (brutalityLevel === "hard") {
+    brutality =
+      "Either do it now, or admit you don't take your own promises seriously.";
+  } else {
+    brutality =
+      "This is what quitting looks like in real time. Stop performing and act.";
+  }
+
+  const line2 = streak ? `${streak} ${escalation}` : escalation;
+  return `${base} ${line2} ${brutality}`;
 }
 
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-async function generateRoast({
-  habitType = "habit",
-  daysMissed = 0,
-  escalationStage = 0,
-  brutalityLevel = "hard",
-  persona = "drill_sergeant",
-  recentOutcomes = [],
-} = {}) {
-  const prompt = [
-    `Persona: ${persona}`,
-    `Brutality: ${brutalityLevel}`,
-    `Habit: ${habitType}`,
-    `Days missed: ${daysMissed}`,
-    `Escalation stage: ${escalationStage}`,
-    `Recent outcomes: ${recentOutcomes.join(", ")}`,
-    "Write one short roast (1-2 sentences) tailored to the persona and brutality."
-  ].join("\n");
-
+/**
+ * Grok-first roast generator.
+ * Always returns a string. Falls back to local deterministic roast if Grok fails or env vars are missing.
+ */
+async function generateRoast(context) {
   try {
-    const text = await callGrok(prompt, { temperature: 0.8, maxTokens: 80, timeoutMs: 6000 });
-    return text.trim();
+    const text = await callGrok(context);
+    if (typeof text === "string" && text.trim().length > 0) return text.trim();
+    // If Grok returns empty/invalid, fallback.
+    return localFallbackRoast(context);
   } catch (err) {
-    // graceful fallback (previous local generator)
-    console.warn("Grok API failed:", err.message);
-    return localFallbackRoast({ habitType, daysMissed, escalationStage, brutalityLevel, persona, recentOutcomes });
+    console.warn("Grok API failed:", err?.message || err);
+    return localFallbackRoast(context);
   }
 }
 
-export { generateRoast };
+module.exports = { generateRoast };
